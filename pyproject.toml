@@ -1,0 +1,33 @@
+[project]
+name = "dcgm-exporter-lite"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "Corey Cole", email = "3700879+corey-cole@users.noreply.github.com" }
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.12"
+dependencies = [
+  "nvidia-ml-py==13.615.71",
+  "prometheus-client==0.26.0",
+]
+
+[project.scripts]
+dcgm-exporter-lite = "dcgm_exporter_lite:main"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+  "pytest-cov>=7.1.0",
+  "ruff==0.17.4",
+]
