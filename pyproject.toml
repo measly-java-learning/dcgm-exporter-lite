@@ -1,7 +1,7 @@
 [project]
 name = "dcgm-exporter-lite"
 version = "0.1.0"
-description = "Add your description here"
+description = "Unprivileged Prometheus exporter for NVIDIA GPU metrics with DCGM Exporter 4.9.0-compatible names"
 readme = "README.md"
 license = "MIT"
 authors = [
@@ -31,3 +31,15 @@ dev = [
   "pytest-cov>=7.1.0",
   "ruff==0.17.4",
 ]
+
+[tool.pytest.ini_options]
+markers = ["hardware: needs a real NVIDIA GPU"]
+addopts = "-m 'not hardware'"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
