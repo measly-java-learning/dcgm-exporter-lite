@@ -15,12 +15,15 @@ from dcgm_exporter_lite.nvml import (
     ReadError,
     RemappedRows,
     Unsupported,
+    _map_exception,
 )
 
 _MISSING = object()
 
 
 def _raise_if_exception(value: Any) -> None:
+    if isinstance(value, pynvml.NVMLError):
+        raise _map_exception(value)
     if isinstance(value, BaseException):
         raise value
     if isinstance(value, type) and issubclass(value, BaseException):
