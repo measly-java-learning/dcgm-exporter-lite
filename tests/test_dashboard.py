@@ -83,3 +83,15 @@ def test_required_operational_queries() -> None:
         for expr in exprs
     )
     assert any("DCGM_FI_DEV_XID_ERROR" in expr and "> 0" in expr for expr in exprs)
+
+
+def test_idle_gpu_count_shows_zero_instead_of_no_data() -> None:
+    exprs = [
+        target.get("expr", "")
+        for panel in _panels(_dashboard())
+        for target in panel.get("targets", [])
+    ]
+    idle = [expr for expr in exprs if "max_over_time(DCGM_FI_DEV_GPU_UTIL_RATIO" in expr]
+
+    assert idle
+    assert all(expr.rstrip().endswith("or vector(0)") for expr in idle)

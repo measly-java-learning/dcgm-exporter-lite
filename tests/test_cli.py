@@ -197,3 +197,11 @@ def test_run_port_in_use_returns_1_no_traceback(capsys) -> None:
     assert result == 1
     assert "cannot listen" in captured.err
     assert "Traceback" not in captured.err
+
+
+def test_bad_interval_env_is_usage_error(capsys) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        parse_config([], {"DCGM_EXPORTER_INTERVAL": "abc"})
+
+    assert exc_info.value.code == 2
+    assert "invalid int value" in capsys.readouterr().err

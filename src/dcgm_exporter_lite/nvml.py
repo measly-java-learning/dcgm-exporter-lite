@@ -297,7 +297,8 @@ class NvmlXidEventSource:
                 continue
             self._index_by_handle[_handle_key(device._handle)] = device.identity.index
 
-        self.available = bool(self._index_by_handle)
+        self.registered = frozenset(self._index_by_handle.values())
+        self.available = bool(self.registered)
 
     def wait(self, timeout_ms: int) -> tuple[int, int] | None:
         try:

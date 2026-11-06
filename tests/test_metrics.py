@@ -18,7 +18,7 @@ def _ctx(device: FakeDevice, **overrides) -> ReadContext:
         "device": device,
         "gpm": None,
         "xid_last": None,
-        "interval_s": 30.0,
+        "now": 0.0,
         "state": {},
     }
     values.update(overrides)
@@ -108,13 +108,35 @@ def test_xid() -> None:
 def test_nvlink() -> None:
     device = _device(nvlink_raw=(1_000_000, 2_000_000))
     state: dict = {}
-    ctx = _ctx(device, interval_s=30.0, state=state)
 
     with pytest.raises(NoValueYet):
-        _nvlink_rate(ctx)
+        _nvlink_rate(_ctx(device, now=100.0, state=state))
 
     device.values["nvlink_raw"] = (1_030_000, 2_060_000)
-    assert _nvlink_rate(ctx) == 3_072_000.0
+    assert _nvlink_rate(_ctx(device, now=130.0, state=state)) == 3_072_000.0
+
+
+def test_nvlink_uses_elapsed_time_not_interval() -> None:
+    device = _device(nvlink_raw=(0, 0))
+    state: dict = {}
+
+    with pytest.raises(NoValueYet):
+        _nvlink_rate(_ctx(device, now=100.0, state=state))
+
+    # 10240 KiB in 10 ms is 10_485_760 B / 0.01 s.
+    device.values["nvlink_raw"] = (10_240, 0)
+    assert _nvlink_rate(_ctx(device, now=100.01, state=state)) == pytest.approx(1_048_576_000)
+
+
+def test_nvlink_non_positive_elapsed_has_no_value() -> None:
+    device = _device(nvlink_raw=(0, 0))
+    state: dict = {}
+
+    with pytest.raises(NoValueYet):
+        _nvlink_rate(_ctx(device, now=100.0, state=state))
+    device.values["nvlink_raw"] = (10, 0)
+    with pytest.raises(NoValueYet):
+        _nvlink_rate(_ctx(device, now=100.0, state=state))
 
 
 def test_registry_matches_default_csv() -> None:

@@ -151,7 +151,7 @@ sudo nvidia-smi -i 0 -mig 0
 
 NVML fields 138/139 (`NVML_FI_DEV_NVLINK_THROUGHPUT_DATA_TX/RX`) are documented as cumulative
 KiB counters. dcgm-exporter-lite samples them and emits
-`(Δtx + Δrx) * 1024 / interval_s` bytes/sec. Verify that assumption.
+`(Δtx + Δrx) * 1024 / elapsed_s` bytes/sec, where `elapsed_s` is the measured time between readings. Verify that assumption.
 
 1. At idle, capture two `nvidia-smi -q -d NVLINK` outputs 15 s apart. The relevant counters must
    not increase without traffic.

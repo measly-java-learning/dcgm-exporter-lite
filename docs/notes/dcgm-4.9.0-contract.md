@@ -123,7 +123,7 @@ them to an instantaneous MiB/s rate by differencing (`NVIDIA/dcgm-exporter` PR #
 `ReadAndCacheNvLinkBandwidth`).
 
 Lite: first cycle raises `NoValueYet`; later cycles emit
-`(Δtx + Δrx) * 1024 / interval_s` bytes/sec for `DCGM_FI_DEV_NVLINK_THROUGHPUT_BYTES_PER_SECOND`.
+`(Δtx + Δrx) * 1024 / elapsed_s` bytes/sec (measured monotonic time between readings) for `DCGM_FI_DEV_NVLINK_THROUGHPUT_BYTES_PER_SECOND`.
 The fields aggregate all links, matching the family's "across all lanes" meaning. Marked
 **unverified on hardware** until the datacenter checklist confirms both the counter semantics and
 the aggregate scope.

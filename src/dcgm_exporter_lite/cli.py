@@ -180,7 +180,9 @@ def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> Config:
         "-c",
         "--collect-interval",
         type=int,
-        default=int(env.get("DCGM_EXPORTER_INTERVAL", "30000")),
+        # A string default is converted by ``type``, so a bad env value is a
+        # usage error rather than a traceback.
+        default=env.get("DCGM_EXPORTER_INTERVAL", "30000"),
         help="collection interval in milliseconds (default: 30000)",
     )
     parser.add_argument(
@@ -377,9 +379,11 @@ def run(
 
     registry = make_registry(lambda: collector.latest, counters)
 
+    # Unhealthy if no fresh snapshot within three intervals (at least 10 s).
+    max_age_s = max(3 * interval_s, 10.0)
+
     def healthy() -> bool:
-        latest = collector.latest
-        return latest is not None and latest.ok_gpus > 0
+        return collector.healthy(max_age_s)
 
     try:
         server = make_server(config.address, registry, healthy)

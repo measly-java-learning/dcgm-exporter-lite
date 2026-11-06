@@ -16,12 +16,16 @@ GOLDEN = Path(__file__).parent / "golden" / "default.prom"
 class _StaticXid:
     available = True
 
+    def watches(self, index: int) -> bool:
+        return index in (0, 1)
+
     def last(self, index: int) -> int | None:
         return {0: 79, 1: 0}.get(index)
 
 
 def _second_cycle_snapshot() -> Snapshot:
     devices = canonical_pair()
+    clock = [0.0]
     collector = Collector(
         devices,
         load_counters(None),
@@ -31,9 +35,11 @@ def _second_cycle_snapshot() -> Snapshot:
         gpm=GpmSampler(devices),
         xid=_StaticXid(),  # type: ignore[arg-type]
         interval_s=30.0,
+        clock=lambda: clock[0],
     )
     collector.probe()
     collector.collect_once()
+    clock[0] = 30.0
     devices[0].values["nvlink_raw"] = (1_030_000, 2_060_000)
     devices[1].values["nvlink_raw"] = (530_000, 660_000)
     return collector.collect_once()

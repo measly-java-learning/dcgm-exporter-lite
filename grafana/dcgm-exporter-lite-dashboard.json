@@ -170,7 +170,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(max_over_time(DCGM_FI_DEV_GPU_UTIL_RATIO{instance=~\"$instance\",gpu=~\"$gpu\"}[1h]) < 0.05)",
+          "expr": "count(max_over_time(DCGM_FI_DEV_GPU_UTIL_RATIO{instance=~\"$instance\",gpu=~\"$gpu\"}[1h]) < 0.05) or vector(0)",
           "legendFormat": "idle",
           "refId": "A",
           "instant": false

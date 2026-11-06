@@ -6,6 +6,7 @@ import logging
 import socket
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
 
 from prometheus_client import CollectorRegistry
 from prometheus_client.exposition import CONTENT_TYPE_LATEST
@@ -72,15 +73,16 @@ def make_server(
         protocol_version = "HTTP/1.1"
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib naming
-            if self.path == "/metrics":
+            path = urlsplit(self.path).path
+            if path == "/metrics":
                 body = render(registry)
                 self._respond(200, CONTENT_TYPE_LATEST, body)
-            elif self.path == "/health":
+            elif path == "/health":
                 if healthy():
                     self._respond(200, "text/plain; charset=utf-8", b"OK")
                 else:
                     self._respond(503, "text/plain; charset=utf-8", b"not ready\n")
-            elif self.path == "/":
+            elif path == "/":
                 self._respond(200, "text/html; charset=utf-8", _INDEX_PAGE)
             else:
                 self._respond(404, "text/plain; charset=utf-8", b"not found\n")

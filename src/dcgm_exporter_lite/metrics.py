@@ -22,7 +22,7 @@ class ReadContext:
     device: GpuDevice
     gpm: Mapping[str, float] | None
     xid_last: int | None
-    interval_s: float
+    now: float  # monotonic seconds at which this cycle's readings were taken
     state: dict
 
 
@@ -89,20 +89,28 @@ def _nvlink_rate(ctx: ReadContext) -> float:
     total = tx + rx
     previous = ctx.state.get("nvlink_prev")
 
-    ctx.state["nvlink_prev"] = total
+    ctx.state["nvlink_prev"] = (total, ctx.now)
     if previous is None:
         raise NoValueYet("nvlink")
 
-    delta = total - previous
-    if delta < 0:
-        delta = 0
-    return delta * 1024.0 / ctx.interval_s
+    previous_total, previous_now = previous
+    elapsed = ctx.now - previous_now
+    if elapsed <= 0:
+        raise NoValueYet("nvlink")
+
+    # The NVML fields are cumulative KiB; divide by the real time between
+    # readings, not the nominal interval, so skipped cycles stay correct.
+    delta = max(total - previous_total, 0)
+    return delta * 1024.0 / elapsed
 
 
 def _xid(ctx: ReadContext) -> float:
     # 4.9.0 reports 0 with err_code="0" before the first XID.
     return 0.0 if ctx.xid_last is None else float(ctx.xid_last)
 
+
+# Rows of the 4.9.0 default CSV that lite omits on purpose (spec §4.3).
+OMITTED: frozenset[str] = frozenset({"DCGM_FI_DEV_VGPU_LICENSE_STATUS"})
 
 METRICS: dict[str, MetricDef] = {
     "DCGM_FI_DEV_SM_CLOCK_HERTZ": MetricDef(

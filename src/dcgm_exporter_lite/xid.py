@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 
 from .nvml import XidEventSource
 
 logger = logging.getLogger(__name__)
 
 _WAIT_MS = 500
+_ERROR_BACKOFF_S = 1.0
+_ERROR_LOG_INTERVAL_S = 300.0
 
 # From DCGM Exporter 4.9.0 internal/pkg/collector/xid_errors.go.
 XID_MESSAGES: dict[int, str] = {
@@ -199,20 +202,35 @@ def xid_message(code: int) -> str:
 class XidWatcher(threading.Thread):
     """Record the last XID code per GPU from an NVML event set."""
 
-    def __init__(self, source: XidEventSource) -> None:
+    def __init__(
+        self, source: XidEventSource, *, error_backoff_s: float = _ERROR_BACKOFF_S
+    ) -> None:
         super().__init__(name="dcgm-xid-watcher", daemon=True)
         self._source = source
+        self._error_backoff_s = error_backoff_s
+        self._last_error_log: float | None = None
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
         self._last: dict[int, int] = {}
         self.available = bool(getattr(source, "available", True))
+        registered = getattr(source, "registered", None)
+        self._registered = None if registered is None else frozenset(registered)
 
     def run(self) -> None:
         while not self._stop_event.is_set():
             try:
                 event = self._source.wait(_WAIT_MS)
             except Exception as exc:
-                logger.warning("XID event source failed: %s", exc)
+                now = time.monotonic()
+                if (
+                    self._last_error_log is None
+                    or now - self._last_error_log >= _ERROR_LOG_INTERVAL_S
+                ):
+                    self._last_error_log = now
+                    logger.warning("XID event source failed: %s", exc)
+                # Back off so a persistently failing source (e.g. a GPU that
+                # fell off the bus) cannot spin this thread.
+                self._stop_event.wait(self._error_backoff_s)
                 continue
 
             if event is None:
@@ -226,6 +244,12 @@ class XidWatcher(threading.Thread):
         self._stop_event.set()
         self.join(timeout)
         self._source.close()
+
+    def watches(self, index: int) -> bool:
+        """True when XID events for GPU ``index`` are registered."""
+        if not self.available:
+            return False
+        return self._registered is None or index in self._registered
 
     def last(self, index: int) -> int | None:
         with self._lock:

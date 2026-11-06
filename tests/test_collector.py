@@ -19,7 +19,10 @@ def _collector(
     hostname: str | None = "host-a",
     replace_blanks: bool = False,
     interval_s: float = 30.0,
+    xid=None,
+    clock=None,
 ) -> Collector:
+    kwargs = {} if clock is None else {"clock": clock}
     return Collector(
         devices,
         counters if counters is not None else load_counters(None),
@@ -27,8 +30,9 @@ def _collector(
         hostname=hostname,
         replace_blanks=replace_blanks,
         gpm=GpmSampler(devices),
-        xid=None,
+        xid=xid,
         interval_s=interval_s,
+        **kwargs,
     )
 
 
@@ -200,3 +204,112 @@ def test_loop_runs_and_stops() -> None:
         loop.stop()
 
     assert not loop.is_alive()
+
+
+class _Clock:
+    def __init__(self, start: float = 1000.0) -> None:
+        self.now = start
+
+    def __call__(self) -> float:
+        return self.now
+
+
+class _PartialXid:
+    """XID watcher that only watches GPU 0."""
+
+    available = True
+
+    def watches(self, index: int) -> bool:
+        return index == 0
+
+    def last(self, index: int) -> int | None:
+        return None
+
+
+def _nvlink_values(snapshot: Snapshot) -> dict[str, float]:
+    return {
+        dict(sample.labels)["gpu"]: sample.value
+        for sample in snapshot.samples
+        if sample.name == "DCGM_FI_DEV_NVLINK_THROUGHPUT_BYTES_PER_SECOND"
+    }
+
+
+def test_probe_does_not_prime_nvlink_baseline() -> None:
+    devices = canonical_pair()
+    clock = _Clock()
+    collector = _collector(devices, clock=clock)
+    collector.probe()
+
+    # Traffic between the probe and the first cycle must not become a rate.
+    devices[0].values["nvlink_raw"] = (1_010_240, 2_000_000)
+    clock.now += 0.01
+    first = collector.collect_once()
+    assert _nvlink_values(first) == {}
+
+    devices[0].values["nvlink_raw"] = (1_040_240, 2_060_000)
+    clock.now += 30.0
+    second = collector.collect_once()
+    assert _nvlink_values(second)["0"] == 3_072_000.0
+
+
+def test_nvlink_rate_after_skipped_cycle_uses_elapsed_time() -> None:
+    devices = canonical_pair()
+    clock = _Clock()
+    collector = _collector(devices, clock=clock)
+    collector.probe()
+    collector.collect_once()
+
+    devices[0].values["nvlink_raw"] = ReadError("transient")
+    clock.now += 30.0
+    collector.collect_once()
+
+    devices[0].values["nvlink_raw"] = (1_060_000, 2_120_000)
+    clock.now += 30.0
+    third = collector.collect_once()
+    assert _nvlink_values(third)["0"] == 3_072_000.0
+
+
+def test_xid_omitted_for_gpu_without_event_registration() -> None:
+    collector = _collector(canonical_pair(), xid=_PartialXid())
+    collector.probe()
+    snapshot = collector.collect_once()
+
+    assert "DCGM_FI_DEV_XID_ERROR" in _gpu_names(snapshot, "0")
+    assert "DCGM_FI_DEV_XID_ERROR" not in _gpu_names(snapshot, "1")
+
+
+def test_healthy_requires_recent_snapshot() -> None:
+    clock = _Clock()
+    collector = _collector(canonical_pair(), clock=clock)
+    collector.probe()
+
+    assert collector.healthy(max_age_s=90.0) is False
+    collector.collect_once()
+    assert collector.healthy(max_age_s=90.0) is True
+
+    clock.now += 91.0
+    assert collector.healthy(max_age_s=90.0) is False
+
+
+def test_gpm_unavailable_logged_once_per_gpu(caplog) -> None:
+    devices = canonical_pair()
+    for device in devices:
+        device.values["gpm_supported"] = False
+    collector = _collector(devices)
+
+    with caplog.at_level(logging.INFO, logger="dcgm_exporter_lite.collector"):
+        collector.probe()
+
+    assert caplog.text.count("GPM is not available on GPU 0") == 1
+    assert caplog.text.count("GPM is not available on GPU 1") == 1
+
+
+def test_deliberately_omitted_counter_logs_info_not_warning(caplog) -> None:
+    collector = _collector(canonical_pair())
+
+    with caplog.at_level(logging.INFO, logger="dcgm_exporter_lite.collector"):
+        collector.probe()
+
+    records = [r for r in caplog.records if "DCGM_FI_DEV_VGPU_LICENSE_STATUS" in r.getMessage()]
+    assert len(records) == 1
+    assert records[0].levelno == logging.INFO

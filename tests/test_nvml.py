@@ -88,3 +88,20 @@ def test_memory_uses_v2(monkeypatch) -> None:
 
     assert device.memory() == nvml.MemoryInfo(1, 2, 3, 4)
     assert versions == [pynvml.nvmlMemory_v2]
+
+
+def test_xid_source_records_registered_gpus(monkeypatch) -> None:
+    _patch_identity(monkeypatch)
+    monkeypatch.setattr(pynvml, "nvmlEventSetCreate", lambda: "event-set")
+
+    def register(handle, event_types, event_set):
+        if handle == 2:
+            raise pynvml.NVMLError_NotSupported(3)
+
+    monkeypatch.setattr(pynvml, "nvmlDeviceRegisterEvents", register)
+    devices = [nvml.NvmlDevice(1, 0), nvml.NvmlDevice(2, 1)]
+
+    source = nvml.NvmlXidEventSource(devices)
+
+    assert source.available is True
+    assert source.registered == frozenset({0})

@@ -131,3 +131,13 @@ def test_root_and_404() -> None:
 
         status, _, _ = _get(f"http://127.0.0.1:{port}/nope")
         assert status == 404
+
+
+def test_paths_ignore_query_string() -> None:
+    server = make_server("127.0.0.1:0", _registry(), lambda: True)
+
+    with _running(server) as port:
+        status, _, _ = _get(f"http://127.0.0.1:{port}/metrics?collect[]=gpu")
+        assert status == 200
+        status, _, _ = _get(f"http://127.0.0.1:{port}/health?x=1")
+        assert status == 200

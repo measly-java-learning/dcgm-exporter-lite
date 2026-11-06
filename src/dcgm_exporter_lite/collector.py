@@ -5,12 +5,12 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from .counters import CounterSpec
 from .gpm import GpmSampler
-from .metrics import METRICS, MetricDef, NoValueYet, ReadContext
+from .metrics import METRICS, OMITTED, MetricDef, NoValueYet, ReadContext
 from .nvml import GpuDevice, GpuLost, ReadError, Unsupported
 from .xid import XidWatcher, xid_message
 
@@ -47,6 +47,7 @@ class Collector:
         gpm: GpmSampler,
         xid: XidWatcher | None,
         interval_s: float,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._devices = list(devices)
         self._counters = list(counters)
@@ -56,6 +57,8 @@ class Collector:
         self._gpm = gpm
         self._xid = xid
         self._interval_s = interval_s
+        self._clock = clock
+        self._latest_at: float | None = None
 
         self._metrics: list[tuple[CounterSpec, MetricDef]] = []
         self._label_counters: list[CounterSpec] = [
@@ -106,11 +109,20 @@ class Collector:
                         enabled.discard(name)
                     continue
                 if definition.source == "xid":
-                    if not self._xid_available():
+                    if not self._xid_watches(device):
                         enabled.discard(name)
+                        logger.info(
+                            "XID events are not watched on GPU %d; omitting %s",
+                            device.identity.index,
+                            name,
+                        )
                     continue
 
-                context = self._context(position, device, None, None)
+                # A throwaway state keeps the probe from seeding rate baselines
+                # (e.g. NVLink) with a reading taken just before the first cycle.
+                context = ReadContext(
+                    device=device, gpm=None, xid_last=None, now=self._clock(), state={}
+                )
                 try:
                     definition.read(context)
                 except NoValueYet:
@@ -134,6 +146,7 @@ class Collector:
     def collect_once(self) -> Snapshot:
         """Read every enabled metric once and publish a snapshot."""
         taken_at = time.time()
+        now = self._clock()
         samples: list[Sample] = []
         ok_gpus = 0
 
@@ -156,7 +169,7 @@ class Collector:
                     device=device,
                     gpm=gpm_values,
                     xid_last=xid_last,
-                    interval_s=self._interval_s,
+                    now=now,
                     state=state,
                 )
                 try:
@@ -196,8 +209,20 @@ class Collector:
             samples.extend(local_samples)
 
         snapshot = Snapshot(tuple(samples), ok_gpus, taken_at)
+        self._latest_at = now
         self.latest = snapshot
         return snapshot
+
+    def healthy(self, max_age_s: float) -> bool:
+        """True when a recent snapshot had at least one GPU with data.
+
+        A stale snapshot (e.g. an NVML call hung the collection loop) is
+        unhealthy even if its contents looked fine.
+        """
+        latest = self.latest
+        if latest is None or self._latest_at is None or latest.ok_gpus <= 0:
+            return False
+        return self._clock() - self._latest_at <= max_age_s
 
     def labels_for(self, device: GpuDevice) -> tuple[tuple[str, str], ...]:
         identity = device.identity
@@ -234,7 +259,13 @@ class Collector:
             if definition is None:
                 if spec.name not in self._warned_unknown:
                     self._warned_unknown.add(spec.name)
-                    logger.warning("counter %s is not implemented; ignoring", spec.name)
+                    if spec.name in OMITTED:
+                        logger.info(
+                            "counter %s is deliberately not exported by lite; ignoring",
+                            spec.name,
+                        )
+                    else:
+                        logger.warning("counter %s is not implemented; ignoring", spec.name)
                 continue
             self._metrics.append((spec, definition))
 
@@ -250,15 +281,15 @@ class Collector:
             except ReadError as exc:
                 self._log_read_error(position, "gpm_support", exc)
                 cache[position] = False
-        if not cache[position]:
-            logger.info(
-                "GPM is not available on GPU %d; omitting PROF_* metrics",
-                device.identity.index,
-            )
+            if not cache[position]:
+                logger.info(
+                    "GPM is not available on GPU %d; omitting PROF_* metrics",
+                    device.identity.index,
+                )
         return cache[position]
 
-    def _xid_available(self) -> bool:
-        return self._xid is not None and bool(getattr(self._xid, "available", True))
+    def _xid_watches(self, device: GpuDevice) -> bool:
+        return self._xid is not None and self._xid.watches(device.identity.index)
 
     def _sample_gpm(self, position: int, device: GpuDevice) -> dict[str, float] | None:
         if not any(METRICS[name].source == "gpm" for name in self._enabled.get(position, set())):
@@ -286,24 +317,9 @@ class Collector:
         return dict(values) if values is not None else None
 
     def _last_xid(self, device: GpuDevice) -> int | None:
-        if not self._xid_available():
+        if not self._xid_watches(device):
             return None
         return self._xid.last(device.identity.index)  # type: ignore[union-attr]
-
-    def _context(
-        self,
-        position: int,
-        device: GpuDevice,
-        gpm: dict[str, float] | None,
-        xid_last: int | None,
-    ) -> ReadContext:
-        return ReadContext(
-            device=device,
-            gpm=gpm,
-            xid_last=xid_last,
-            interval_s=self._interval_s,
-            state=self._state.setdefault(position, {}),
-        )
 
     def _mark_lost(self, position: int, device: GpuDevice) -> None:
         if position in self._lost:

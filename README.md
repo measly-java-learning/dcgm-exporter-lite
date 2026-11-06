@@ -44,7 +44,8 @@ curl -s http://localhost:9400/metrics
 ```
 
 `/metrics` serializes the latest immutable snapshot; a scrape never calls NVML directly.
-`/health` returns 503 before the first successful collection and 200 afterwards.
+`/health` returns 503 before the first successful collection, 200 afterwards, and 503 again if no
+fresh collection has completed within three collect intervals (minimum 10 s), e.g. when an NVML call hangs.
 
 ### Flags
 
@@ -73,6 +74,7 @@ checklist in [`docs/testing/datacenter-verification.md`](docs/testing/datacenter
 is run on an A100/H100/B200 host.
 
 - ✅ verified on hardware
+- ◐ present on hardware with in-range idle values; not yet observed under a real event or load
 - 🖥 datacenter-only, **unverified on hardware**
 - ❌ omitted
 
@@ -89,7 +91,7 @@ is run on an A100/H100/B200 host.
 | `DCGM_FI_DEV_MEMORY_UTIL_RATIO` | gauge | ✅ | utilization `.memory` ÷ 100 |
 | `DCGM_FI_DEV_ENC_UTIL_RATIO` | gauge | ✅ | encoder utilization ÷ 100 |
 | `DCGM_FI_DEV_DEC_UTIL_RATIO` | gauge | ✅ | decoder utilization ÷ 100 |
-| `DCGM_FI_DEV_XID_ERROR` | gauge | ✅ | XID event set; last code per GPU, plus `err_code`/`err_msg` labels |
+| `DCGM_FI_DEV_XID_ERROR` | gauge | ◐ | XID event set (registration verified as non-root; no XID observed yet); last code per GPU, plus `err_code`/`err_msg` labels |
 | `DCGM_FI_DEV_FB_CAPACITY_BYTES` | gauge | ✅ | `nvmlDeviceGetMemoryInfo(v2).total` |
 | `DCGM_FI_DEV_FB_FREE_BYTES` | gauge | ✅ | `.free` |
 | `DCGM_FI_DEV_FB_USED_BYTES` | gauge | ✅ | `.used` |
@@ -100,11 +102,11 @@ is run on an A100/H100/B200 host.
 | `DCGM_FI_DEV_ROW_REMAP_CORRECTABLE_TOTAL` | counter | 🖥 | `nvmlDeviceGetRemappedRows` |
 | `DCGM_FI_DEV_ROW_REMAP_FAILED` | gauge | 🖥 | `nvmlDeviceGetRemappedRows` failure flag |
 | `DCGM_FI_SYSTEM_DRIVER_VERSION` | label | ✅ | driver version as a label on every metric |
-| `DCGM_FI_PROF_GR_ENGINE_UTIL_RATIO` | gauge | ✅ | GPM `GRAPHICS_UTIL` ÷ 100 |
-| `DCGM_FI_PROF_TENSOR_UTIL_RATIO` | gauge | ✅ | GPM `HMMA_TENSOR_UTIL` ÷ 100 |
-| `DCGM_FI_PROF_DRAM_UTIL_RATIO` | gauge | ✅ | GPM `DRAM_BW_UTIL` ÷ 100 |
-| `DCGM_FI_PROF_PCIE_TX_BYTES` | gauge | ✅ | GPM `PCIE_TX_PER_SEC` MiB/s × 2²⁰ |
-| `DCGM_FI_PROF_PCIE_RX_BYTES` | gauge | ✅ | GPM `PCIE_RX_PER_SEC` MiB/s × 2²⁰ |
+| `DCGM_FI_PROF_GR_ENGINE_UTIL_RATIO` | gauge | ◐ | GPM `GRAPHICS_UTIL` ÷ 100 |
+| `DCGM_FI_PROF_TENSOR_UTIL_RATIO` | gauge | ◐ | GPM `HMMA_TENSOR_UTIL` ÷ 100 |
+| `DCGM_FI_PROF_DRAM_UTIL_RATIO` | gauge | ◐ | GPM `DRAM_BW_UTIL` ÷ 100 |
+| `DCGM_FI_PROF_PCIE_TX_BYTES` | gauge | ◐ | GPM `PCIE_TX_PER_SEC` MiB/s × 2²⁰ |
+| `DCGM_FI_PROF_PCIE_RX_BYTES` | gauge | ◐ | GPM `PCIE_RX_PER_SEC` MiB/s × 2²⁰ |
 
 The packaged default is the 4.9.0 `default-counters.csv` (27 rows). A custom `-f` file may add
 other rows; names this exporter does not implement are logged once and ignored.
@@ -203,7 +205,8 @@ journal (`journalctl --user -u dcgm-exporter-lite`).
   image.**
 - **Minimal `--devices` grammar** (`f` or `g:0,2`); MIG selectors are rejected.
 - **Unsupported DCGM flags exit non-zero** with a README pointer instead of being ignored.
-- **`/health` returns 503 before the first successful collection.** 4.9.0 returns 200 earlier.
+- **`/health` returns 503 before the first successful collection, and when collection goes stale.**
+  4.9.0 returns 200 earlier.
 - **Logging content/format differs**, though `--log-format json` produces one JSON object per line.
 
 ## Development

@@ -117,10 +117,15 @@ class FakeDevice:
 class FakeEventSource:
     """Return queued ``(gpu_index, xid_code)`` events, then ``None``."""
 
-    def __init__(self, events: list[tuple[int, int] | BaseException]) -> None:
+    def __init__(
+        self,
+        events: list[tuple[int, int] | BaseException],
+        registered: set[int] | None = None,
+    ) -> None:
         self._events = list(events)
         self.closed = False
         self.available = True
+        self.registered = None if registered is None else frozenset(registered)
         self.waits = 0
 
     def wait(self, timeout_ms: int) -> tuple[int, int] | None:

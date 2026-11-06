@@ -112,7 +112,7 @@ Every GPU metric carries these labels, in this order (as in 4.9.0):
 | `pci_bus_id` | e.g. `"00000000:2B:00.0"` | `nvmlDeviceGetPciInfo_v3().busId` |
 | `device` | `"nvidia<minor>"`, e.g. `"nvidia0"` | `nvmlDeviceGetMinorNumber` |
 | `modelName` | e.g. `"NVIDIA GeForce RTX 5060 Ti"` | `nvmlDeviceGetName` |
-| `Hostname` | host name (omitted with `--no-hostname`) | `socket.gethostname()` |
+| `hostname` | host name (omitted with `--no-hostname`); lower-case in 4.8.4 and 4.9.0 renderers | `socket.gethostname()` |
 | `DCGM_FI_SYSTEM_DRIVER_VERSION` | e.g. `"615.71.10"` | `nvmlSystemGetDriverVersion` |
 
 `DCGM_FI_SYSTEM_DRIVER_VERSION` appears as a label because the CSV row type is `label`. Handle the
@@ -280,7 +280,7 @@ Requirements:
 - Uses **only DCGM Exporter 4.9.0 metric names and labels**, so it renders against the real
   exporter after the swap.
 - Variables: `datasource`, `instance`, and `gpu`, filled the same way as NVIDIA's dashboard
-  (`label_values(DCGM_FI_DEV_GPU_TEMP_CELSIUS, …)`), plus `Hostname`/`modelName` where useful.
+  (`label_values(DCGM_FI_DEV_GPU_TEMP_CELSIUS, …)`), plus `hostname`/`modelName` where useful.
 - Panels that depend on datacenter-only metrics show "No data" gracefully on cards without them.
   No panel is broken.
 - Exported JSON for current Grafana, at `grafana/dcgm-exporter-lite-dashboard.json`.
