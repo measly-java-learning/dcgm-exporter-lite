@@ -1,0 +1,14 @@
+[Unit]
+Description=dcgm-exporter-lite GPU metrics exporter
+Documentation=https://github.com/corey-cole/dcgm-exporter-lite
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/dcgm-exporter-lite
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
