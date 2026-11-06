@@ -14,7 +14,11 @@ _WAIT_MS = 500
 _ERROR_BACKOFF_S = 1.0
 _ERROR_LOG_INTERVAL_S = 300.0
 
-# From DCGM Exporter 4.9.0 internal/pkg/collector/xid_errors.go.
+# XID code -> message table copied from NVIDIA/dcgm-exporter tag 4.9.0,
+# internal/pkg/collector/xid_errors.go.
+# Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+# Licensed under the Apache License, Version 2.0; see LICENSES/Apache-2.0.txt.
+# Modified: converted from a Go slice to a Python dict.
 XID_MESSAGES: dict[int, str] = {
     0: "No Error",
     1: "Invalid or corrupted push buffer stream",

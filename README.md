@@ -231,5 +231,13 @@ Datacenter-only metrics need the manual checklist in
 
 ## License
 
-MIT for this project. The vendored `default-counters.csv` retains NVIDIA’s header and is from
-DCGM Exporter 4.9.0.
+This project is MIT licensed (see [`LICENSE`](LICENSE)).
+
+Two pieces are copied from [NVIDIA DCGM Exporter](https://github.com/NVIDIA/dcgm-exporter) 4.9.0
+and remain under the Apache License 2.0 (see [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt)):
+
+- `src/dcgm_exporter_lite/data/default-counters.csv`, from `etc/default-counters.csv`
+- the `XID_MESSAGES` table in `src/dcgm_exporter_lite/xid.py`, from
+  `internal/pkg/collector/xid_errors.go`
+
+The distribution's license expression is therefore `MIT AND Apache-2.0`.

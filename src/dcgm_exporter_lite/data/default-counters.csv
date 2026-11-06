@@ -1,4 +1,9 @@
-# Vendored from NVIDIA/dcgm-exporter tag 4.9.0
+# Copyright (c) NVIDIA CORPORATION. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Vendored from NVIDIA/dcgm-exporter tag 4.9.0 (etc/default-counters.csv), licensed under
+# the Apache License, Version 2.0; see LICENSES/Apache-2.0.txt.
+# Modified by dcgm-exporter-lite: added this header. The rows are unchanged.
 # Format
 # If line starts with a '#' it is considered a comment
 # DCGM FIELD, Prometheus metric type, help message

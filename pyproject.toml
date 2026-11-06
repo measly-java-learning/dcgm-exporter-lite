@@ -3,8 +3,8 @@ name = "dcgm-exporter-lite"
 version = "0.1.0"
 description = "Unprivileged Prometheus exporter for NVIDIA GPU metrics with DCGM Exporter 4.9.0-compatible names"
 readme = "README.md"
-license = "MIT"
-license-files = ["LICENSE"]
+license = "MIT AND Apache-2.0"
+license-files = ["LICENSE", "LICENSES/*"]
 authors = [
     { name = "Corey Cole", email = "3700879+corey-cole@users.noreply.github.com" }
 ]
