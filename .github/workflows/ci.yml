@@ -2,7 +2,10 @@ name: ci
 
 on:
   push:
+    # Tags are handled by publish.yml, which calls this workflow first.
+    branches: ["**"]
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
@@ -16,6 +19,9 @@ jobs:
         python-version: ["3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
+        with:
+          # hatch-vcs derives the package version from git tags.
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}

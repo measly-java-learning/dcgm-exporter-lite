@@ -16,23 +16,21 @@ scrape configs, dashboards, or alerts.
 
 ## Install
 
-The package is not published to PyPI. Install a wheel or the source tree:
+From PyPI, into a virtual environment as an ordinary user:
 
 ```bash
-# from a built wheel
 python3 -m venv .venv
-.venv/bin/pip install dist/dcgm_exporter_lite-0.1.0-py3-none-any.whl
+.venv/bin/pip install dcgm-exporter-lite
 
-# or from a checkout
-python3 -m venv .venv
-.venv/bin/pip install .
+# or with uv
+uv tool install dcgm-exporter-lite
 ```
 
-With `uv`:
+From a checkout:
 
 ```bash
-uv venv
-uv pip install dist/dcgm_exporter_lite-0.1.0-py3-none-any.whl
+python3 -m venv .venv
+.venv/bin/pip install .
 ```
 
 ## Quick start
@@ -228,6 +226,20 @@ Datacenter-only metrics need the manual checklist in
 [`docs/testing/datacenter-verification.md`](docs/testing/datacenter-verification.md). The verified
 4.9.0 wire contract is recorded in
 [`docs/notes/dcgm-4.9.0-contract.md`](docs/notes/dcgm-4.9.0-contract.md).
+
+### Releasing
+
+The package version comes from git tags (`hatch-vcs`); untagged builds get a development version
+such as `0.1.dev17+g1a2b3c4`. To release, tag a commit on `main` and push the tag:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+`.github/workflows/publish.yml` then runs the test suite, refuses tags whose commit is not on
+`main`, builds, checks that the built version matches the tag and that the counters CSV and both
+license files are packaged, and publishes to PyPI by trusted publishing from the `pypi` environment.
 
 ## License
 

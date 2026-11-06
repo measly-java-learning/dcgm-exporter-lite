@@ -124,7 +124,6 @@ wheels = [
 
 [[package]]
 name = "dcgm-exporter-lite"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "nvidia-ml-py" },
