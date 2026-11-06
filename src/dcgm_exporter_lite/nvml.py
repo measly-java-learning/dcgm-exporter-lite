@@ -123,6 +123,8 @@ class GpuDevice(Protocol):
 
     def gpm_sample(self) -> object: ...
 
+    def gpm_free(self, sample: object) -> None: ...
+
     def gpm_metrics(
         self, prev: object, cur: object, metric_ids: Sequence[int]
     ) -> dict[int, float]: ...
@@ -221,6 +223,10 @@ class NvmlDevice:
                 pynvml.nvmlGpmSampleFree(sample)
             raise
         return sample
+
+    def gpm_free(self, sample: object) -> None:
+        with contextlib.suppress(pynvml.NVMLError):
+            pynvml.nvmlGpmSampleFree(sample)
 
     def gpm_metrics(self, prev: object, cur: object, metric_ids: Sequence[int]) -> dict[int, float]:
         request = pynvml.c_nvmlGpmMetricsGet_t()

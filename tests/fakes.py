@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Sequence
 from typing import Any
 
 import pynvml
@@ -99,9 +100,10 @@ class FakeDevice:
         _raise_if_exception(value)
         return value
 
-    def gpm_metrics(
-        self, prev: object, cur: object, metric_ids: list[int] | tuple[int, ...]
-    ) -> dict[int, float]:
+    def gpm_free(self, sample: object) -> None:
+        self.calls["gpm_free"] += 1
+
+    def gpm_metrics(self, prev: object, cur: object, metric_ids: Sequence[int]) -> dict[int, float]:
         self.calls["gpm_metrics"] += 1
         script = self.values.get("gpm_metrics")
         value = (script.pop(0) if script else {}) if isinstance(script, list) else script or {}
