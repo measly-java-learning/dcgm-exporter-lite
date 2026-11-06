@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import ctypes
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -268,8 +269,12 @@ class XidEventSource(Protocol):
 
 
 def _handle_key(handle) -> int:
-    value = getattr(handle, "value", handle)
-    return int(value or 0)
+    if isinstance(handle, int):
+        return handle
+    try:
+        return int(ctypes.cast(handle, ctypes.c_void_p).value or 0)
+    except (TypeError, ValueError):
+        return id(handle)
 
 
 class NvmlXidEventSource:
