@@ -1,0 +1,103 @@
+name: publish
+
+# Publishes to PyPI when a release tag (e.g. v0.1.0) is pushed.
+# PyPI trusted publisher settings: workflow "publish.yml", environment "pypi".
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require the tagged commit to be on main
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag $GITHUB_REF_NAME points at $GITHUB_SHA, which is not on main."
+            exit 1
+          fi
+
+      - uses: astral-sh/setup-uv@v6
+
+      - run: uv build
+
+      - name: Check version matches tag and package contents
+        run: |
+          uv run --no-project --with packaging python - <<'EOF'
+          import glob, os, sys, tarfile, zipfile
+          from packaging.version import Version
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          expected = Version(tag.removeprefix("v"))
+          wheels = glob.glob("dist/*.whl")
+          sdists = glob.glob("dist/*.tar.gz")
+          if len(wheels) != 1 or len(sdists) != 1:
+              sys.exit(f"expected one wheel and one sdist, found {wheels} {sdists}")
+
+          with zipfile.ZipFile(wheels[0]) as wheel:
+              names = set(wheel.namelist())
+              meta = next(n for n in names if n.endswith(".dist-info/METADATA"))
+              fields = dict(
+                  line.split(": ", 1)
+                  for line in wheel.read(meta).decode().splitlines()
+                  if ": " in line
+              )
+          built = Version(fields["Version"])
+          if built != expected or built.local is not None:
+              sys.exit(f"built version {built} does not match tag {tag}")
+
+          required = {
+              "dcgm_exporter_lite/data/default-counters.csv",
+              f"dcgm_exporter_lite-{built}.dist-info/licenses/LICENSE",
+              f"dcgm_exporter_lite-{built}.dist-info/licenses/LICENSES/Apache-2.0.txt",
+          }
+          missing = required - names
+          if missing:
+              sys.exit(f"wheel is missing {sorted(missing)}")
+          if fields.get("License-Expression") != "MIT AND Apache-2.0":
+              sys.exit(f"unexpected License-Expression {fields.get('License-Expression')!r}")
+
+          with tarfile.open(sdists[0]) as sdist:
+              root = f"dcgm_exporter_lite-{built}/"
+              members = set(sdist.getnames())
+          for path in ("LICENSE", "LICENSES/Apache-2.0.txt",
+                       "src/dcgm_exporter_lite/data/default-counters.csv"):
+              if root + path not in members:
+                  sys.exit(f"sdist is missing {path}")
+
+          print(f"OK: {built} from tag {tag}")
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/dcgm-exporter-lite/
+    permissions:
+      id-token: write  # PyPI trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

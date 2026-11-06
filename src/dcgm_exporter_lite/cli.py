@@ -30,7 +30,7 @@ def _package_version() -> str:
     try:
         return version("dcgm-exporter-lite")
     except PackageNotFoundError:
-        return "0.1.0"
+        return "0+unknown"
 
 
 SupportedLogFormat = Literal["text", "json"]

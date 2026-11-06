@@ -1,6 +1,6 @@
 [Unit]
 Description=dcgm-exporter-lite GPU metrics exporter
-Documentation=https://github.com/corey-cole/dcgm-exporter-lite
+Documentation=https://github.com/measly-java-learning/dcgm-exporter-lite
 After=network-online.target
 Wants=network-online.target
 

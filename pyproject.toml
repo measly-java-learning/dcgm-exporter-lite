@@ -1,6 +1,6 @@
 [project]
 name = "dcgm-exporter-lite"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Unprivileged Prometheus exporter for NVIDIA GPU metrics with DCGM Exporter 4.9.0-compatible names"
 readme = "README.md"
 license = "MIT AND Apache-2.0"
@@ -26,13 +26,23 @@ dependencies = [
 dcgm-exporter-lite = "dcgm_exporter_lite:main"
 
 [project.urls]
-Homepage = "https://github.com/corey-cole/dcgm-exporter-lite"
-Issues = "https://github.com/corey-cole/dcgm-exporter-lite/issues"
-Source = "https://github.com/corey-cole/dcgm-exporter-lite"
+Homepage = "https://github.com/measly-java-learning/dcgm-exporter-lite"
+Issues = "https://github.com/measly-java-learning/dcgm-exporter-lite/issues"
+Source = "https://github.com/measly-java-learning/dcgm-exporter-lite"
 
 [build-system]
-requires = ["uv_build>=0.13.7,<0.14.0"]
-build-backend = "uv_build"
+# uv_build has no dynamic versions; hatch-vcs derives the version from git tags.
+requires = ["hatchling>=1.27", "hatch-vcs>=0.4"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dcgm_exporter_lite"]
+
+[tool.hatch.build.targets.sdist]
+only-include = ["src", "README.md", "LICENSE", "LICENSES"]
 
 [dependency-groups]
 dev = [
