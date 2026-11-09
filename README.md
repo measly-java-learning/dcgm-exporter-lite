@@ -74,6 +74,7 @@ throughput still needs an NVLink-connected (SXM/HGX) host, and MIG handling is n
 
 - ✅ verified on hardware
 - ◐ present on hardware with in-range values; not yet observed under a real event
+- ⚠ verified on hardware with a known discrepancy (see the linked note)
 - 🖥 datacenter-only, **unverified on hardware**
 - ❌ omitted
 
@@ -99,12 +100,12 @@ throughput still needs an NVLink-connected (SXM/HGX) host, and MIG handling is n
 | `DCGM_FI_DEV_VGPU_LICENSE_STATUS` | gauge | ❌ | NVML only reports “not vGPU” on bare metal; meaning is unclear |
 | `DCGM_FI_DEV_ROW_REMAP_UNCORRECTABLE_TOTAL` | counter | ✅ | `nvmlDeviceGetRemappedRows` |
 | `DCGM_FI_DEV_ROW_REMAP_CORRECTABLE_TOTAL` | counter | ✅ | `nvmlDeviceGetRemappedRows` |
-| `DCGM_FI_DEV_ROW_REMAP_FAILED` | gauge | ✅ | `nvmlDeviceGetRemappedRows` failure flag |
+| `DCGM_FI_DEV_ROW_REMAP_FAILED` | gauge | ◐ | `nvmlDeviceGetRemappedRows` failure flag |
 | `DCGM_FI_SYSTEM_DRIVER_VERSION` | label | ✅ | driver version as a label on every metric |
 | `DCGM_FI_PROF_GR_ENGINE_UTIL_RATIO` | gauge | ✅ | GPM `GRAPHICS_UTIL` ÷ 100 |
 | `DCGM_FI_PROF_TENSOR_UTIL_RATIO` | gauge | ✅ | GPM `HMMA_TENSOR_UTIL` ÷ 100 |
 | `DCGM_FI_PROF_DRAM_UTIL_RATIO` | gauge | ✅ | GPM `DRAM_BW_UTIL` ÷ 100 |
-| `DCGM_FI_PROF_PCIE_TX_BYTES` | gauge | ✅ | GPM `PCIE_TX_PER_SEC` MiB/s × 2²⁰ |
+| `DCGM_FI_PROF_PCIE_TX_BYTES` | gauge | ⚠ | GPM `PCIE_TX_PER_SEC` MiB/s × 2²⁰; may read low, see [PCIe TX](#pcie-tx-may-read-low) |
 | `DCGM_FI_PROF_PCIE_RX_BYTES` | gauge | ✅ | GPM `PCIE_RX_PER_SEC` MiB/s × 2²⁰ |
 
 The packaged default is the 4.9.0 `default-counters.csv` (27 rows). A custom `-f` file may add
@@ -117,6 +118,17 @@ newer (including Blackwell GeForce). The exporter takes two samples and computes
 interval, so the first collection cycle has no `PROF_*` values. This differs from DCGM’s DCP
 sampling, and is the one place where values can differ from the real exporter. On Volta and Ampere
 these metrics are absent.
+
+`DCGM_FI_DEV_GPU_UTIL_RATIO` (driver utilization) and `DCGM_FI_PROF_GR_ENGINE_UTIL_RATIO` (GPM) use
+different sampling windows. On H100 they disagreed for one or two samples at job start, then
+agreed. Do not compare the two in a single alert expression; alert on one of them.
+
+#### PCIe TX may read low
+
+On H100 PCIe, `DCGM_FI_PROF_PCIE_TX_BYTES` matched `nvidia-smi dmon` within 1% for bulk symmetric
+DMA. For RX-heavy traffic it read about 26% below `dmon`, reproducibly, while
+`DCGM_FI_PROF_PCIE_RX_BYTES` matched on the same traffic. The cause is not known. Treat TX as
+approximate when the traffic is mostly host-to-device.
 
 ### Labels
 

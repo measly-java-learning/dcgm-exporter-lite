@@ -201,12 +201,15 @@ no NVLink bridges, so §5 could not be run.
 | Check | Result |
 |---|---|
 | `DCGM_FI_DEV_MEMORY_TEMP_CELSIUS` | Pass: agrees with `nvidia-smi` |
-| `DCGM_FI_DEV_ROW_REMAP_*` | Pass: matches `nvidia-smi -q -d ROW_REMAPPER` |
-| `DCGM_FI_DEV_XID_ERROR` | Pass: `0` with `err_msg="No Error"`; no XID was triggered |
+| `DCGM_FI_DEV_ROW_REMAP_*_TOTAL` | Pass: matches `nvidia-smi -q -d ROW_REMAPPER`, including one host with ~150 remapped rows |
+| `DCGM_FI_DEV_ROW_REMAP_FAILED` | Pass, narrowly tested: matches `nvidia-smi` |
+| `DCGM_FI_DEV_XID_ERROR` | Pass, narrowly tested: `0` with `err_msg="No Error"`; no XID was triggered |
 | `DCGM_FI_SYSTEM_DRIVER_VERSION` label | Pass: matches `nvidia-smi` |
+| `DCGM_FI_PROF_GR_ENGINE_UTIL_RATIO` vs `DCGM_FI_DEV_GPU_UTIL_RATIO` | Note: differ for one or two samples at job start, then agree. Not a bug; README warns against comparing them in one alert |
 | `DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL` (A100) | Pass: `rate()` matches the `BOARD_POWER_WATTS` gauge |
 | `DCGM_FI_PROF_GR_ENGINE_UTIL_RATIO`, `..._TENSOR_UTIL_RATIO`, `..._DRAM_UTIL_RATIO` | Pass: respond to load |
-| `DCGM_FI_PROF_PCIE_TX_BYTES` / `..._RX_BYTES` | Pass: respond to load; within 2% of `nvidia-smi dmon` over a sustained 60 s copy |
+| `DCGM_FI_PROF_PCIE_RX_BYTES` | Pass: within 2% of `nvidia-smi dmon` over a sustained 60 s copy, including RX-heavy traffic |
+| `DCGM_FI_PROF_PCIE_TX_BYTES` | **Discrepancy:** within 1% of `dmon` on bulk symmetric DMA, but ~26% below `dmon` on RX-heavy traffic, reproducibly. Cause not diagnosed |
 
 The `PROF_*` rows apply to the H100 only. They are GPM-backed, and the A100 (Ampere) has no GPM, so
 it emits no `PROF_*` samples by design.
@@ -217,5 +220,5 @@ it emits no `PROF_*` samples by design.
 | §4 MIG behavior | Not reported |
 
 Still open: `DCGM_FI_DEV_NVLINK_THROUGHPUT_BYTES_PER_SECOND` (§5) needs an NVLink-connected
-SXM/HGX host. MIG handling (§4) can be checked on either of these hosts, but needs root to
+SXM/HGX host. The PCIe TX discrepancy is undiagnosed. MIG handling (§4) can be checked on either of these hosts, but needs root to
 enable MIG. A real XID event has not been observed.
