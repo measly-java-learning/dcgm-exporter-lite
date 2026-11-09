@@ -2,8 +2,9 @@ name: ci
 
 on:
   push:
-    # Tags are handled by publish.yml, which calls this workflow first.
-    branches: ["**"]
+    # Other branches are tested through pull_request. Tags are handled by
+    # publish.yml, which calls this workflow first.
+    branches: [main]
   pull_request:
   workflow_call:
 
