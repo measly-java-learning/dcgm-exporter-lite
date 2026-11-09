@@ -12,7 +12,7 @@ generators on a production GPU without approval.
 
 ```bash
 python3 -m venv ~/dcgm-lite-verify
-~/dcgm-lite-verify/bin/pip install /path/to/dcgm_exporter_lite-0.1.0-py3-none-any.whl
+~/dcgm-lite-verify/bin/pip install dcgm-exporter-lite   # or a local wheel under test
 
 ~/dcgm-lite-verify/bin/dcgm-exporter-lite -a 127.0.0.1:9400 -c 5000
 ```
@@ -190,3 +190,32 @@ Send that archive plus a short note covering:
 - pass/fail for each row in §2 and for §5
 - any metric that was absent, had the wrong unit, or disagreed with `nvidia-smi`
 - the exact `nvidia-smi` section used for each datacenter-only comparison
+
+## Verification results
+
+### 2026-11-09: A100 and H100 PCIe (v1.0.0)
+
+Run by the maintainer on one A100 host and one H100 PCIe host. The H100 is a PCIe-only part with
+no NVLink bridges, so §5 could not be run.
+
+| Check | Result |
+|---|---|
+| `DCGM_FI_DEV_MEMORY_TEMP_CELSIUS` | Pass: agrees with `nvidia-smi` |
+| `DCGM_FI_DEV_ROW_REMAP_*` | Pass: matches `nvidia-smi -q -d ROW_REMAPPER` |
+| `DCGM_FI_DEV_XID_ERROR` | Pass: `0` with `err_msg="No Error"`; no XID was triggered |
+| `DCGM_FI_SYSTEM_DRIVER_VERSION` label | Pass: matches `nvidia-smi` |
+| `DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL` (A100) | Pass: `rate()` matches the `BOARD_POWER_WATTS` gauge |
+| `DCGM_FI_PROF_GR_ENGINE_UTIL_RATIO`, `..._TENSOR_UTIL_RATIO`, `..._DRAM_UTIL_RATIO` | Pass: respond to load |
+| `DCGM_FI_PROF_PCIE_TX_BYTES` / `..._RX_BYTES` | Pass: respond to load; within 2% of `nvidia-smi dmon` over a sustained 60 s copy |
+
+The `PROF_*` rows apply to the H100 only. They are GPM-backed, and the A100 (Ampere) has no GPM, so
+it emits no `PROF_*` samples by design.
+
+| Not covered | |
+|---|---|
+| §5 NVLink counter-vs-rate | Not run: no NVLink on either host |
+| §4 MIG behavior | Not reported |
+
+Still open: `DCGM_FI_DEV_NVLINK_THROUGHPUT_BYTES_PER_SECOND` (§5) needs an NVLink-connected
+SXM/HGX host. MIG handling (§4) can be checked on either of these hosts, but needs root to
+enable MIG. A real XID event has not been observed.

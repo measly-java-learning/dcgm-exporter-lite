@@ -66,13 +66,14 @@ message instead of being silently ignored.
 
 ## Metric coverage
 
-Verified on an NVIDIA GeForce RTX 5060 Ti (driver 615.71.10, non-root). Datacenter-only metrics are
-implemented and unit-tested against the fake NVML; they are **unverified on hardware** until the
-checklist in [`docs/testing/datacenter-verification.md`](docs/testing/datacenter-verification.md)
-is run on an A100/H100/B200 host.
+Verified on an NVIDIA GeForce RTX 5060 Ti (driver 615.71.10, non-root), and on A100 and H100 PCIe
+hosts with the checklist in
+[`docs/testing/datacenter-verification.md`](docs/testing/datacenter-verification.md). NVLink
+throughput still needs an NVLink-connected (SXM/HGX) host, and MIG handling is not yet verified; see
+[Verification results](docs/testing/datacenter-verification.md#verification-results).
 
 - ✅ verified on hardware
-- ◐ present on hardware with in-range idle values; not yet observed under a real event or load
+- ◐ present on hardware with in-range values; not yet observed under a real event
 - 🖥 datacenter-only, **unverified on hardware**
 - ❌ omitted
 
@@ -80,7 +81,7 @@ is run on an A100/H100/B200 host.
 |---|---|---|---|
 | `DCGM_FI_DEV_SM_CLOCK_HERTZ` | gauge | ✅ | `nvmlDeviceGetClockInfo(SM)` × 1e6 |
 | `DCGM_FI_DEV_MEMORY_CLOCK_HERTZ` | gauge | ✅ | `nvmlDeviceGetClockInfo(MEM)` × 1e6 |
-| `DCGM_FI_DEV_MEMORY_TEMP_CELSIUS` | gauge | 🖥 | NVML field `NVML_FI_DEV_MEMORY_TEMP` |
+| `DCGM_FI_DEV_MEMORY_TEMP_CELSIUS` | gauge | ✅ | NVML field `NVML_FI_DEV_MEMORY_TEMP` |
 | `DCGM_FI_DEV_GPU_TEMP_CELSIUS` | gauge | ✅ | `nvmlDeviceGetTemperature(GPU)` |
 | `DCGM_FI_DEV_BOARD_POWER_WATTS` | gauge | ✅ | `nvmlDeviceGetPowerUsage` mW ÷ 1000 |
 | `DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL` | counter | ✅ | `nvmlDeviceGetTotalEnergyConsumption` mJ ÷ 1000 |
@@ -89,22 +90,22 @@ is run on an A100/H100/B200 host.
 | `DCGM_FI_DEV_MEMORY_UTIL_RATIO` | gauge | ✅ | utilization `.memory` ÷ 100 |
 | `DCGM_FI_DEV_ENC_UTIL_RATIO` | gauge | ✅ | encoder utilization ÷ 100 |
 | `DCGM_FI_DEV_DEC_UTIL_RATIO` | gauge | ✅ | decoder utilization ÷ 100 |
-| `DCGM_FI_DEV_XID_ERROR` | gauge | ◐ | XID event set (registration verified as non-root; no XID observed yet); last code per GPU, plus `err_code`/`err_msg` labels |
+| `DCGM_FI_DEV_XID_ERROR` | gauge | ◐ | XID event set (registration verified as non-root; `0`/`No Error` matches on A100/H100; no real XID observed yet); last code per GPU, plus `err_code`/`err_msg` labels |
 | `DCGM_FI_DEV_FB_CAPACITY_BYTES` | gauge | ✅ | `nvmlDeviceGetMemoryInfo(v2).total` |
 | `DCGM_FI_DEV_FB_FREE_BYTES` | gauge | ✅ | `.free` |
 | `DCGM_FI_DEV_FB_USED_BYTES` | gauge | ✅ | `.used` |
 | `DCGM_FI_DEV_FB_RESERVED_BYTES` | gauge | ✅ | `.reserved` |
 | `DCGM_FI_DEV_NVLINK_THROUGHPUT_BYTES_PER_SECOND` | gauge | 🖥 | cumulative KiB fields → rate across all links |
 | `DCGM_FI_DEV_VGPU_LICENSE_STATUS` | gauge | ❌ | NVML only reports “not vGPU” on bare metal; meaning is unclear |
-| `DCGM_FI_DEV_ROW_REMAP_UNCORRECTABLE_TOTAL` | counter | 🖥 | `nvmlDeviceGetRemappedRows` |
-| `DCGM_FI_DEV_ROW_REMAP_CORRECTABLE_TOTAL` | counter | 🖥 | `nvmlDeviceGetRemappedRows` |
-| `DCGM_FI_DEV_ROW_REMAP_FAILED` | gauge | 🖥 | `nvmlDeviceGetRemappedRows` failure flag |
+| `DCGM_FI_DEV_ROW_REMAP_UNCORRECTABLE_TOTAL` | counter | ✅ | `nvmlDeviceGetRemappedRows` |
+| `DCGM_FI_DEV_ROW_REMAP_CORRECTABLE_TOTAL` | counter | ✅ | `nvmlDeviceGetRemappedRows` |
+| `DCGM_FI_DEV_ROW_REMAP_FAILED` | gauge | ✅ | `nvmlDeviceGetRemappedRows` failure flag |
 | `DCGM_FI_SYSTEM_DRIVER_VERSION` | label | ✅ | driver version as a label on every metric |
-| `DCGM_FI_PROF_GR_ENGINE_UTIL_RATIO` | gauge | ◐ | GPM `GRAPHICS_UTIL` ÷ 100 |
-| `DCGM_FI_PROF_TENSOR_UTIL_RATIO` | gauge | ◐ | GPM `HMMA_TENSOR_UTIL` ÷ 100 |
-| `DCGM_FI_PROF_DRAM_UTIL_RATIO` | gauge | ◐ | GPM `DRAM_BW_UTIL` ÷ 100 |
-| `DCGM_FI_PROF_PCIE_TX_BYTES` | gauge | ◐ | GPM `PCIE_TX_PER_SEC` MiB/s × 2²⁰ |
-| `DCGM_FI_PROF_PCIE_RX_BYTES` | gauge | ◐ | GPM `PCIE_RX_PER_SEC` MiB/s × 2²⁰ |
+| `DCGM_FI_PROF_GR_ENGINE_UTIL_RATIO` | gauge | ✅ | GPM `GRAPHICS_UTIL` ÷ 100 |
+| `DCGM_FI_PROF_TENSOR_UTIL_RATIO` | gauge | ✅ | GPM `HMMA_TENSOR_UTIL` ÷ 100 |
+| `DCGM_FI_PROF_DRAM_UTIL_RATIO` | gauge | ✅ | GPM `DRAM_BW_UTIL` ÷ 100 |
+| `DCGM_FI_PROF_PCIE_TX_BYTES` | gauge | ✅ | GPM `PCIE_TX_PER_SEC` MiB/s × 2²⁰ |
+| `DCGM_FI_PROF_PCIE_RX_BYTES` | gauge | ✅ | GPM `PCIE_RX_PER_SEC` MiB/s × 2²⁰ |
 
 The packaged default is the 4.9.0 `default-counters.csv` (27 rows). A custom `-f` file may add
 other rows; names this exporter does not implement are logged once and ignored.
