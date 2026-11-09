@@ -117,7 +117,8 @@ to emit bytes/sec for `DCGM_FI_PROF_PCIE_TX_BYTES` / `..._RX_BYTES`.
 
 4.9.0 passes DCGM's value through with no scaling: `internal/pkg/signalcatalog/catalog.go:322-341`
 binds both fields with `ConversionIdentity`. Any TX correction would have to live in the DCGM host
-engine's profiling module, not in the exporter. 4.9.0 also rejects the older
+engine's profiling module, not in the exporter. The open `NVIDIA/DCGM` repo has only field definitions for
+`DCGM_FI_PROF_PCIE_*` and a skeleton `modules/profiling`, so the source does not settle it. 4.9.0 also rejects the older
 `DCGM_FI_DEV_PCIE_TX/RX_THROUGHPUT` fields and names the `PROF_` fields as their replacement
 (`internal/pkg/counters/counter_config.go:406-416`). The CSV help says the rate includes "both
 protocol headers and data payloads".
