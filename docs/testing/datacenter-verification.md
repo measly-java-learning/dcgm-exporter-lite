@@ -209,7 +209,7 @@ no NVLink bridges, so §5 could not be run.
 | `DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL` (A100) | Pass: `rate()` matches the `BOARD_POWER_WATTS` gauge |
 | `DCGM_FI_PROF_GR_ENGINE_UTIL_RATIO`, `..._TENSOR_UTIL_RATIO`, `..._DRAM_UTIL_RATIO` | Pass: respond to load |
 | `DCGM_FI_PROF_PCIE_RX_BYTES` | Pass: within 2% of `nvidia-smi dmon` over a sustained 60 s copy, including RX-heavy traffic |
-| `DCGM_FI_PROF_PCIE_TX_BYTES` | **Discrepancy:** within 1% of `dmon` on bulk symmetric DMA, but ~26% below `dmon` on RX-heavy traffic, reproducibly. Cause not diagnosed |
+| `DCGM_FI_PROF_PCIE_TX_BYTES` | **Discrepancy, upstream:** within 1% of `dmon` on bulk symmetric DMA, but ~26% below `dmon` on RX-heavy traffic. Diagnosed below |
 
 The `PROF_*` rows apply to the H100 only. They are GPM-backed, and the A100 (Ampere) has no GPM, so
 it emits no `PROF_*` samples by design.
@@ -220,5 +220,20 @@ it emits no `PROF_*` samples by design.
 | §4 MIG behavior | Not reported |
 
 Still open: `DCGM_FI_DEV_NVLINK_THROUGHPUT_BYTES_PER_SECOND` (§5) needs an NVLink-connected
-SXM/HGX host. The PCIe TX discrepancy is undiagnosed. MIG handling (§4) can be checked on either of these hosts, but needs root to
+SXM/HGX host. MIG handling (§4) can be checked on either of these hosts, but needs root to
 enable MIG. A real XID event has not been observed.
+
+### 2026-11-09 follow-up: PCIe TX diagnosis (H100 PCIe)
+
+A script on the H100 host read GPM `PCIE_TX_PER_SEC`/`PCIE_RX_PER_SEC` and
+`nvmlDeviceGetPcieThroughput` in the same loop during host-to-device and device-to-host copies.
+
+| Traffic | GPM vs `nvmlDeviceGetPcieThroughput` |
+|---|---|
+| RX (any direction) | Match |
+| TX payload writes (device-to-host) | Match |
+| TX read requests (GPU reading host memory, host-to-device) | GPM about 27% lower, constant factor |
+
+The gap is between two NVIDIA interfaces, not in this exporter, which reports GPM's value
+unchanged. It is documented in the README under "PCIe TX may read low". Still unchecked: which
+value DCGM's own `DCGM_FI_PROF_PCIE_TX_BYTES` reports for read-request traffic.

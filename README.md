@@ -125,10 +125,17 @@ agreed. Do not compare the two in a single alert expression; alert on one of the
 
 #### PCIe TX may read low
 
-On H100 PCIe, `DCGM_FI_PROF_PCIE_TX_BYTES` matched `nvidia-smi dmon` within 1% for bulk symmetric
-DMA. For RX-heavy traffic it read about 26% below `dmon`, reproducibly, while
-`DCGM_FI_PROF_PCIE_RX_BYTES` matched on the same traffic. The cause is not known. Treat TX as
-approximate when the traffic is mostly host-to-device.
+On H100 PCIe, NVIDIA's two NVML interfaces disagree about one kind of PCIe TX traffic. When the GPU
+reads from host memory (a host-to-device copy driven by the GPU), the read requests it sends count
+as TX. For that traffic, GPM's `PCIE_TX_PER_SEC` reads about 27% below
+`nvmlDeviceGetPcieThroughput` (the source of `nvidia-smi dmon`'s PCIe columns). The factor was
+constant across runs. The two interfaces agree for TX payload writes (device-to-host) and for all
+RX traffic.
+
+`DCGM_FI_PROF_PCIE_TX_BYTES` reports the GPM value unchanged, so the gap comes from NVIDIA's
+interfaces, not from this exporter's conversion. Which value DCGM itself reports for this traffic
+has not been checked. Expect TX to read low compared with `dmon` when traffic is mostly
+host-to-device.
 
 ### Labels
 
