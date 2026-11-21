@@ -47,7 +47,7 @@ only-include = ["src", "README.md", "LICENSE", "LICENSES"]
 [dependency-groups]
 dev = [
   "pytest-cov>=7.1.0",
-  "ruff==0.17.4",
+  "ruff==0.17.5",
 ]
 
 [tool.pytest.ini_options]
